@@ -27,6 +27,7 @@ def parse_args():
     output_group = parser.add_mutually_exclusive_group(required = True)
     output_group.add_argument(
         "--output",
+        required=True,
         help="Path to the file to output"
     )
     output_group.add_argument(
@@ -129,11 +130,11 @@ def main():
     if format == "aperio":
         info = redact_aperio_date(info)
 
-    if args.overwrite:
-        tifftools.write_tiff(info, args.input, allowExisting=True)
-    else:
-        tifftools.write_tiff(info, args.output)
-
+    #if args.overwrite:
+    #    tifftools.write_tiff(info, args.input, allowExisting=True)
+    #else:
+    #    tifftools.write_tiff(info, args.output)
+    tifftools.write_tiff(info, args.output)
 
 
 if __name__ == "__main__":
