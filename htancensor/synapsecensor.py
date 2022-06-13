@@ -1,0 +1,1 @@
+# Passes a synapse entity into censor.py
