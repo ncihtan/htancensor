@@ -6,6 +6,7 @@ import datetime
 import argparse
 import sys
 import logging
+import pathlib
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -43,6 +44,10 @@ def parse_args():
     if args.remove_date:
         args.replace_date = None
 
+    assert pathlib.Path(args.input).suffix == pathlib.Path(args.output).suffix, \
+        "Output should have the same extension as the input"
+
+
     return args
 
 def check_format(
@@ -70,8 +75,6 @@ def remove_tag(
 ) -> dict:
 
     count = 0
-    print(tag)
-    print(tag.value)
 
     for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'], subifds =True)):
         for tagidx, taginfo in list(ifd['tags'].items()):
@@ -89,7 +92,7 @@ def remove_tag(
     if count > 0:    
         logging.info(f'{count} occurances of {tag} replaced with {replacement}')
     if count == 0:
-         count.info(f'No DateTime tags found')
+         logging.info(f'No DateTime tags found')
 
     return info
 
@@ -173,7 +176,6 @@ def main():
         logging.info("Dry run. Output not saved")
     else:
         tifftools.write_tiff(info, args.output)
-
 
 if __name__ == "__main__":
     main()
