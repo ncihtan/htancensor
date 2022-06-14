@@ -18,7 +18,7 @@ def parse_args():
     )
     parser.add_argument(
         "--output",
-        #required=True,
+        required=True,
         help="Path to the file to output"
     )
     parser.add_argument(
@@ -152,6 +152,9 @@ def main():
         sys.exit(1)
 
     format = check_format(info)
+
+    n_ifds =  sum(1 for _ in tifftools.commands._iterate_ifds(info['ifds'], subifds = True))
+    logging.info(f'Searching accross {n_ifds} IFDs')
 
     info = redact_tiff_date(info, args.replace_date)
     
