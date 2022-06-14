@@ -23,7 +23,6 @@ def parse_args():
     )
     parser.add_argument(
         "--dryrun",
-        "--overwrite",
         default=False,
         action = "store_true",
         help="Just print information on the run, do not write file"
@@ -46,7 +45,6 @@ def parse_args():
 
     assert pathlib.Path(args.input).suffix == pathlib.Path(args.output).suffix, \
         "Output should have the same extension as the input"
-
 
     return args
 
