@@ -54,13 +54,13 @@ def check_format(
     try:
         description = info['ifds'][0]['tags'][tifftools.Tag.IMAGEDESCRIPTION.value]['data']
     except:
-        logging.info('No ImageDescription in IFD 0')
+        print('No ImageDescription in IFD 0')
         description = "unknow"
     if description[:7] == 'Aperio ':
-        logging.info("Aperio format found")
+        print("Aperio format found")
         format = "aperio"
     elif description[-4:] == 'OME>':
-        logging.info("OME-TIFF format found")
+        print("OME-TIFF format found")
         format = "ometiff"
     else:
         format = "unknown"
@@ -78,19 +78,19 @@ def remove_tag(
         for tagidx, taginfo in list(ifd['tags'].items()):
             if tagidx == tag.value:
                 if replacement is None:
-                    logging.info(f'Removing {tifftools.Tag.DATETIME} [{taginfo["data"]}] from IFD {idx}')
+                    print(f'Removing {tifftools.Tag.DATETIME} [{taginfo["data"]}] from IFD {idx}')
                     del ifd['tags'][tagidx]
                     count = count + 1
                 else:
-                    logging.info(f'Replacing DateTime tag (306) [{taginfo["data"]}] from IFD {idx} with [{replacement}]')
+                    print(f'Replacing DateTime tag (306) [{taginfo["data"]}] from IFD {idx} with [{replacement}]')
                     taginfo['datatype'] = tag.datatype
                     taginfo['data'] = replacement
                     count = count + 1
 
     if count > 0:    
-        logging.info(f'{count} occurances of {tag} replaced with {replacement}')
+        print(f'{count} occurances of {tag} replaced with {replacement}')
     if count == 0:
-         logging.info(f'No DateTime tags found')
+         print(f'No DateTime tags found')
 
     return info
 
@@ -125,49 +125,57 @@ def redact_aperio_date(
     for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'])):
         for tagidx, taginfo in list(ifd['tags'].items()):
             if tagidx == tifftools.Tag.IMAGEDESCRIPTION.value:
-                if replacement is None:
-                    logging.info(f'Removing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx}')
-                    new_description =  re.sub(r'|Date = \d{2}/\d{2}/\d{2}|Time=\d{2}:\d{2}:\d{2}', '', taginfo['data'])
-                else:
-                    logging.info(f'Replacing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx} with {replacement}')
-                    new_description =  re.sub(r'Date = \d{2}/\d{2}/\d{2}', f'Date = {replacement[0]}',taginfo['data'])
-                    new_description =  re.sub(r'Time = \d{2}:\d{2}:\d{2}', f'Time = {replacement[1]}', taginfo['data'])
-                taginfo['datatype'] = tifftools.Datatype.ASCII
-                taginfo['data'] = replacement
-                count = count + 1
+                if re.match(r'.+\|Date = \d{2}\/\d{2}\/\d{2}.+',taginfo['data'], flags = re.S):
+                    if replacement is None:
+                        print(f'Removing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx}')
+                        new_description =  re.sub(r'\|Date = \d{2}\/\d{2}\/\d{2}\|Time = \d{2}:\d{2}:\d{2}', '', taginfo['data'])
+                    else:
+                        print(f'Replacing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx} with {replacement}')
+                        new_description =  re.sub(r'Date = \d{2}\/\d{2}\/\d{2}', f'Date = {replacement[0]}',taginfo['data'])
+                        new_description =  re.sub(r'Time = \d{2}:\d{2}:\d{2}', f'Time = {replacement[1]}', taginfo['data'])
+                    taginfo['datatype'] = tifftools.Datatype.ASCII
+                    taginfo['data'] = new_description
+                    count = count + 1
 
     if count > 0:    
-        logging.info(f'{count} Aperio Dates and Times replaced with {replacement}')
+        print(f'{count} Aperio Dates and Times replaced with {replacement}')
     if count == 0:
-         logging.info(f'No DateTime tags found')
+         print(f'No DateTime tags found')
+
+    return info
 
 def main():
 
     args = parse_args()
 
     try:
-        info = tifftools.read_tiff(args.input)
-    except: 
-        logging.error('tifftools failed to load image. Provide a valid file')
+        dirty_info = tifftools.read_tiff(args.input)
+        info = dirty_info
+    except Exception as e:
+        print("The error raised is: ", e)
         sys.exit(1)
 
     format = check_format(info)
 
     n_ifds =  sum(1 for _ in tifftools.commands._iterate_ifds(info['ifds'], subifds = True))
-    logging.info(f'Searching accross {n_ifds} IFDs')
+    print(f'Searching accross {n_ifds} IFDs')
 
     info = redact_tiff_date(info, args.replace_date)
     
     if format == "aperio":
-        logging.info("Looking for dates in Aperio formatted ImageDescription")
+        print("Looking for dates in Aperio formatted ImageDescription")
         info = redact_aperio_date(info, args.replace_date)
 
     #if args.overwrite:
     #    tifftools.write_tiff(info, args.input, allowExisting=True)
     #else:
     #    tifftools.write_tiff(info, args.output)
+
+    if dirty_info == info:
+        print('No changes made')
+        
     if args.dryrun:
-        logging.info("Dry run. Output not saved")
+        print("Dry run. Output not saved")
     else:
         tifftools.write_tiff(info, args.output)
 
