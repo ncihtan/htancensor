@@ -76,7 +76,7 @@ def remove_tag(
 
     count = 0
 
-    for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'], subifds =True)):
+    for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'], subifds = True)):
         for tagidx, taginfo in list(ifd['tags'].items()):
             if tagidx == tag.value:
                 if replacement is None:
@@ -122,33 +122,26 @@ def redact_aperio_date(
         replacement = replacement.split(" ")
         replacement[0] = replacement[0].replace(":","/")
 
-    aperio_dates = 0
+    count = 0
 
-    for i in range(len(info['ifds'])):
-        try: 
-            ## Reset Dates In ImageDescription
-            description = info['ifds'][i]['tags'][tifftools.Tag.IMAGEDESCRIPTION.value]
-            value = description['data']
-            value = re.sub(r'Date = \d{2}/\d{2}/\d{2}', f'Date = {replacement[0]}', value)
-            value = re.sub(r'Time = \d{2}:\d{2}:\d{2}', f'Time = {replacement[1]}', value)
+    for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'])):
+        for tagidx, taginfo in list(ifd['tags'].items()):
+            if tagidx == tifftools.Tag.IMAGEDESCRIPTION.value:
+                if replacement is None:
+                    logging.info(f'Removing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx}')
+                    new_description =  re.sub(r'|Date = \d{2}/\d{2}/\d{2}|Time=\d{2}:\d{2}:\d{2}', '', taginfo['data'])
+                else:
+                    logging.info(f'Replacing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx} with {replacement}')
+                    new_description =  re.sub(r'Date = \d{2}/\d{2}/\d{2}', f'Date = {replacement[0]}',taginfo['data'])
+                    new_description =  re.sub(r'Time = \d{2}:\d{2}:\d{2}', f'Time = {replacement[1]}', taginfo['data'])
+                taginfo['datatype'] = tifftools.Datatype.ASCII
+                taginfo['data'] = replacement
+                count = count + 1
 
-            assert len(value.encode('utf-8')) == len(description['data'].encode('utf-8')), \
-                "New description must match length of old one"
-
-            info['ifds'][i]['tags'][tifftools.Tag.IMAGEDESCRIPTION.value] = {
-                'data': value,
-                'datatype': tifftools.Datatype.ASCII
-            }
-
-            aperio_dates = aperio_dates + 1
-
-        except:
-            continue
-
-    logging.info(f'{aperio_dates} dates replaced with "Date = {replacement[0]}|Time= {replacement[1]}"')
-
-    return(info)
-
+    if count > 0:    
+        logging.info(f'{count} Aperio Dates and Times replaced with {replacement}')
+    if count == 0:
+         logging.info(f'No DateTime tags found')
 
 def main():
 
