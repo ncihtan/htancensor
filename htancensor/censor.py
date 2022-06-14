@@ -7,10 +7,6 @@ import argparse
 import sys
 import logging
 
-logging.basicConfig(
-    level=logging.INFO
-)
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Redact tiff based file",
@@ -20,81 +16,118 @@ def parse_args():
         help="TIFF file to process"
     )
     parser.add_argument(
-        "--replace_date",
-        help="YYYY:MM:DD HH:MM:SS string to replace all DateTime values."
-        "Note the use of colons in the date, as required by the TIFF standard.",
-    )
-    output_group = parser.add_mutually_exclusive_group(required = True)
-    output_group.add_argument(
         "--output",
-        required=True,
+        #required=True,
         help="Path to the file to output"
     )
-    output_group.add_argument(
+    parser.add_argument(
+        "--dryrun",
         "--overwrite",
         default=False,
         action = "store_true",
-        help="Boolean. If selecred overwrites the project"
+        help="Just print information on the run, do not write file"
+    )
+    parser.add_argument(
+        "--remove_date",
+        default=False,
+        action = "store_true",
+        help=f"Remove DateTime 306 (0x132) and Date/Time values in Aperio SVS"
+    )
+    parser.add_argument(
+        "--replace_date",
+        help="YYYY:MM:DD HH:MM:SS string to replace all DateTime 306 (0x132) values and Date/Time values in Aperio SVS"
+        "Note the use of colons in the date, as required by the TIFF standard.",
     )
     args = parser.parse_args()
+
+    if args.remove_date:
+        args.replace_date = None
+
     return args
 
 def check_format(
     info:dict
 ) -> str:
-    description = info['ifds'][0]['tags'][tifftools.Tag.IMAGEDESCRIPTION.value]['data']
+    try:
+        description = info['ifds'][0]['tags'][tifftools.Tag.IMAGEDESCRIPTION.value]['data']
+    except:
+        logging.info('No ImageDescription in IFD 0')
+        description = "unknow"
     if description[:7] == 'Aperio ':
+        logging.info("Aperio format found")
         format = "aperio"
     elif description[-4:] == 'OME>':
+        logging.info("OME-TIFF format found")
         format = "ometiff"
     else:
         format = "unknown"
     return format
 
-def redact_tiff_date(
+def remove_tag(
     info:dict,
-    replacement:str = "1970:01:01 00:00:00"
+    tag:tifftools.Tag,
+    replacement:None
 ) -> dict:
 
-    assert len(replacement) == 19, \
-        "length of DateTime string must be exactly 19"
+    count = 0
+    print(tag)
+    print(tag.value)
 
-    tiff_dates = 0
+    for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'], subifds =True)):
+        for tagidx, taginfo in list(ifd['tags'].items()):
+            if tagidx == tag.value:
+                if replacement is None:
+                    logging.info(f'Removing {tifftools.Tag.DATETIME} [{taginfo["data"]}] from IFD {idx}')
+                    del ifd['tags'][tagidx]
+                    count = count + 1
+                else:
+                    logging.info(f'Replacing DateTime tag (306) [{taginfo["data"]}] from IFD {idx} with [{replacement}]')
+                    taginfo['datatype'] = tag.datatype
+                    taginfo['data'] = replacement
+                    count = count + 1
 
-    for i in range(len(info['ifds'])):
-        try:
-            # Check it exists
-            info['ifds'][i]['tags'][tifftools.Tag.DATETIME.value]
-
-            # If so replace
-            info['ifds'][i]['tags'][tifftools.Tag.DATETIME.value] = {
-                'data': str(replacement),
-                'datatype': tifftools.Datatype.ASCII
-            }
-
-            tiff_dates = tiff_dates + 1
-        except:
-            continue
-    if tiff_dates > 0:    
-        logging.info(f'{tiff_dates} DateTime tags replaced with {replacement}')
+    if count > 0:    
+        logging.info(f'{count} occurances of {tag} replaced with {replacement}')
+    if count == 0:
+         count.info(f'No DateTime tags found')
 
     return info
 
-    
 
+def redact_tiff_date(
+    info:dict,
+    replacement:str
+) -> dict:
+
+    if replacement != None:
+        assert len(replacement) == 19, \
+            "length of DateTime string must be exactly 19 in format YYYY:MM:DD HH:MM:SS"
+
+    info = remove_tag(info, tifftools.Tag.DATETIME,replacement)
+
+    return info
 
 def redact_aperio_date(
     info:dict,
-    replacement:str = "01/01/70 00:00:00"
+    replacement:str
 ) -> dict:
+
+    if replacement != None:
+        assert len(replacement) == 19, \
+            "length of DateTime string must be exactly 19 in format YYYY:MM:DD HH:MM:SS"
+
+        replacement = replacement.split(" ")
+        replacement[0] = replacement[0].replace(":","/")
+
     aperio_dates = 0
+
     for i in range(len(info['ifds'])):
         try: 
             ## Reset Dates In ImageDescription
             description = info['ifds'][i]['tags'][tifftools.Tag.IMAGEDESCRIPTION.value]
             value = description['data']
-            value = re.sub(r'Date = \d{2}/\d{2}/\d{2}', 'Date = 01/01/70', value)
-            value = re.sub(r'Time = \d{2}:\d{2}:\d{2}', 'Time = 00:00:00', value)
+            value = re.sub(r'Date = \d{2}/\d{2}/\d{2}', f'Date = {replacement[0]}', value)
+            value = re.sub(r'Time = \d{2}:\d{2}:\d{2}', f'Time = {replacement[1]}', value)
 
             assert len(value.encode('utf-8')) == len(description['data'].encode('utf-8')), \
                 "New description must match length of old one"
@@ -109,12 +142,13 @@ def redact_aperio_date(
         except:
             continue
 
-    logging.info(f'{aperio_dates} dates replaced with {replacement}')
+    logging.info(f'{aperio_dates} dates replaced with "Date = {replacement[0]}|Time= {replacement[1]}"')
 
     return(info)
 
 
 def main():
+
     args = parse_args()
 
     try:
@@ -125,16 +159,20 @@ def main():
 
     format = check_format(info)
 
-    info = redact_tiff_date(info)
+    info = redact_tiff_date(info, args.replace_date)
     
     if format == "aperio":
-        info = redact_aperio_date(info)
+        logging.info("Looking for dates in Aperio formatted ImageDescription")
+        info = redact_aperio_date(info, args.replace_date)
 
     #if args.overwrite:
     #    tifftools.write_tiff(info, args.input, allowExisting=True)
     #else:
     #    tifftools.write_tiff(info, args.output)
-    tifftools.write_tiff(info, args.output)
+    if args.dryrun:
+        logging.info("Dry run. Output not saved")
+    else:
+        tifftools.write_tiff(info, args.output)
 
 
 if __name__ == "__main__":
