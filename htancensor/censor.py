@@ -172,9 +172,8 @@ def main():
     #    tifftools.write_tiff(info, args.output)
 
     if dirty_info == info:
-        print('No changes made')
-        
-    if args.dryrun:
+        print('No changes made. Output not saved')
+    elif args.dryrun:
         print("Dry run. Output not saved")
     else:
         tifftools.write_tiff(info, args.output)

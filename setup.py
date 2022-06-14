@@ -28,6 +28,7 @@ setup(name='htan-censor',
       python_requires='>=3.6',
       install_requires=['tifftools', 'synapseclient'],
       entry_points={
-          'console_scripts': ['htancensor=htancensor.censor:main']
+          'console_scripts': ['htancensor=htancensor.censor:main', 'htancensor-synapse=htancensor.synapsecensor:main']
+          
       }
 )

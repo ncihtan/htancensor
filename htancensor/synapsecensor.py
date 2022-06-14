@@ -57,7 +57,7 @@ def main():
     #print(censor_exc.stdout)
     print(censor_exc.stdout)
 
-    if re.match(r'.+No changes made',censor_exc.stdout, flags = re.S):
+    if re.match(r'.+No changes made.+',censor_exc.stdout, flags = re.S):
         pass
     else:
         print(f"Uploading new version to {entity.id}")
