@@ -73,10 +73,13 @@ def gs_upload(filename, uri):
     hash = md5_file(filename)
 
     upload_cmd = ['gsutil', '-h', f'x-goog-meta-content-md5:{hash}', 'cp', filename, uri]
+    print(upload_cmd)
     upload_exc = subprocess.run(
         upload_cmd, 
         capture_output = True, text=True
         )
+    print(upload_exc.stderr)
+    print(upload_exc.stdout)
 
 def syn_update(syn, filename, entity):
        syn.uploadFileHandle(filename, entity['parentId'])
