@@ -81,6 +81,18 @@ def gs_upload(filename, uri):
     print(upload_exc.stderr)
     print(upload_exc.stdout)
 
+def s3_upload(filename, uri):
+    hash = md5_file(filename)
+
+    upload_cmd = ['aws', 's3', 'cp', '--profile', 'sandbox-developer' f'--metadata content-md5={hash}', filename, uri]
+    print(' '.join(upload_cmd))
+    upload_exc = subprocess.run(
+        upload_cmd, 
+        capture_output = True, text=True
+        )
+    print(upload_exc.stderr)
+    print(upload_exc.stdout)
+
 def syn_update(syn, filename, entity):
        syn.uploadFileHandle(filename, entity['parentId'])
 
@@ -99,10 +111,11 @@ def main():
 
     entity = syn.get(args.input)
 
-    output = os.path.basename(entity.path)
+    #output = os.path.basename(entity.path)
+    output = entity.path
 
     censor_exc = subprocess.run(
-        ['python','htancensor/censor.py', str(entity.path), '--output' , str(output),'--remove_date'], 
+        ['python','htancensor/reset_datetime.py', str(entity.path), '1970:01:01 00:00:00'], 
         capture_output = True, text=True
         )
     #print(censor_exc.stdout)
@@ -113,11 +126,11 @@ def main():
     #print(f'source: {uri}')
     #scratch_uri = uri.replace('gs://', 'gs://htan-dcc-scratch/htancensor/')
     print(f'Uploading to: {uri}')
-    gs_upload(output, uri)
+    s3_upload(output, uri)
 
     print('Cleaning up...')
     print('\tRemoving output')
-    os.remove(output)
+    #os.remove(output)
     print('\tRemoving from cache')
     subprocess.run(['rm', '-rf', entity.cacheDir])
     #if entity['createdBy'] == '3413795':
