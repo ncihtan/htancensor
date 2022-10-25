@@ -2,6 +2,11 @@
 
 `htancensor` provides methods for removal or replacement of tiff tags and ImageDescription contents that may present a risk of participant re-identification.
 
+`htancensor` removes or replaces date in
+- TIFF tag `DateTime`
+- Aperio SVS `ImageDescription` `Date` and `Time` attributes
+- OME-TIFF `AcquisitionTime` from XML present in `ImageDescription`
+
 ## Installation
 
 Clone this repository, move into and install
