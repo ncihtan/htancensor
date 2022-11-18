@@ -108,8 +108,11 @@ def main():
     args = parse_args()
     syn = synapseclient.Synapse()
     syn.login()
+    print('Logged into Synapse')
 
     entity = syn.get(args.input)
+    
+    print(f'Downloaded {args.input} from Synapse')
 
     #output = os.path.basename(entity.path)
     output = entity.path
@@ -119,6 +122,7 @@ def main():
         capture_output = True, text=True
         )
     #print(censor_exc.stdout)
+    print(f'Replaced datetime in {entity.path}')
     print(censor_exc.stdout)
 
     uri = get_uri(entity)
