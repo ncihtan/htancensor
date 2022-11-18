@@ -132,11 +132,11 @@ def main():
     print(f'Uploading to: {uri}')
     s3_upload(output, uri)
 
-    print('Cleaning up...')
-    print('\tRemoving output')
+    #print('Cleaning up...')
+    #print('\tRemoving output')
     #os.remove(output)
-    print('\tRemoving from cache')
-    subprocess.run(['rm', '-rf', entity.cacheDir])
+    #print('\tRemoving from cache')
+    #subprocess.run(['rm', '-rf', entity.cacheDir])
     #if entity['createdBy'] == '3413795':
     #    if re.match(r'^gs\:\/\/htan-dcc.+', str(uri)):
     #        print(f'Updating in HTAN Google bucket: {uri}')
