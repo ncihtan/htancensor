@@ -17,8 +17,7 @@ def parse_args():
         help="TIFF file to process"
     )
     parser.add_argument(
-        "--output",
-        required=True,
+        "output",
         help="Path to the file to output"
     )
     parser.add_argument(
@@ -64,6 +63,11 @@ def check_format(
         format = "ometiff"
     else:
         format = "unknown"
+    try: 
+        tags = info['ifds'][0]['tags'][65449]
+        format = "ndpi"
+    except:
+        pass
     return format
 
 def remove_tag(
@@ -144,6 +148,55 @@ def redact_aperio_date(
 
     return info
 
+def remove_ome_date(
+    info:dict,
+) -> dict:
+
+
+    count = 0
+
+    for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'])):
+        for tagidx, taginfo in list(ifd['tags'].items()):
+            if tagidx == tifftools.Tag.IMAGEDESCRIPTION.value:
+                if re.match(r'.+\<AcquisitionDate\>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\<\/AcquisitionDate\>.+',taginfo['data'], flags = re.S):
+                    print(f'Removing AcquisitionDate from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx}')
+                    new_description =  re.sub(r'\<AcquisitionDate\>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\<\/AcquisitionDate\>', '', taginfo['data'])
+                    taginfo['datatype'] = tifftools.Datatype.ASCII
+                    taginfo['data'] = new_description
+                    count = count + 1
+
+    if count > 0:    
+        print(f'{count} OME AcquisitionDate attributes removed')
+    if count == 0:
+         print(f'No AcquisitionDate tags found')
+
+    return info
+
+def remove_ome_sa(
+    info:dict,
+) -> dict:
+
+
+    count = 0
+
+    for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'])):
+        for tagidx, taginfo in list(ifd['tags'].items()):
+            if tagidx == tifftools.Tag.IMAGEDESCRIPTION.value:
+                if re.match(r'.+\<StructuredAnnotations\>.+\<\/StructuredAnnotations\>.+',taginfo['data'], flags = re.S):
+                    print(f'Removing StructuredAnnotations from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx}')
+                    new_description =  re.sub(r'\<StructuredAnnotations\>.+\<\/StructuredAnnotations\>', '', taginfo['data'])
+                    taginfo['datatype'] = tifftools.Datatype.ASCII
+                    taginfo['data'] = new_description
+                    count = count + 1
+
+    if count > 0:    
+        print(f'OME Structured annotations removed')
+    if count == 0:
+         print(f'OME Structured annotations notfound')
+
+    return info
+
+
 def main():
 
     args = parse_args()
@@ -165,6 +218,11 @@ def main():
     if format == "aperio":
         print("Looking for dates in Aperio formatted ImageDescription")
         info = redact_aperio_date(info, args.replace_date)
+
+    if format == "ometiff":
+        print("Looking for dates in OME formatted ImageDescription")
+        info = remove_ome_date(info)
+        info = remove_ome_sa(info)
 
     #if args.overwrite:
     #    tifftools.write_tiff(info, args.input, allowExisting=True)
