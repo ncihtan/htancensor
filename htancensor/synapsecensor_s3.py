@@ -84,7 +84,7 @@ def gs_upload(filename, uri):
 def s3_upload(filename, uri):
     hash = md5_file(filename)
 
-    upload_cmd = ['aws', 's3', 'cp', '--profile', 'identitycentral' f'--metadata content-md5={hash}', filename, uri]
+    upload_cmd = ['aws', 's3', 'cp', '--profile', 'identitycentral', f'--metadata content-md5={hash}', filename, uri]
     print(' '.join(upload_cmd))
     upload_exc = subprocess.run(
         upload_cmd, 
