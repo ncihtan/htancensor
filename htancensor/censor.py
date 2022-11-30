@@ -58,6 +58,9 @@ def check_format(
     if description[:7] == 'Aperio ':
         print("Aperio format found")
         format = "aperio"
+    elif description[:6] == 'Versa ':
+        print('Aperio Versa format found'
+        format = 'aperio'
     elif description[-4:] == 'OME>':
         print("OME-TIFF format found")
         format = "ometiff"
@@ -218,7 +221,7 @@ def main():
     if format == "aperio":
         print("Looking for dates in Aperio formatted ImageDescription")
         info = redact_aperio_date(info, args.replace_date)
-
+        
     if format == "ometiff":
         print("Looking for dates in OME formatted ImageDescription")
         info = remove_ome_date(info)
