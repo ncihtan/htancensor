@@ -59,7 +59,7 @@ def check_format(
         print("Aperio format found")
         format = "aperio"
     elif description[:6] == 'Versa ':
-        print('Aperio Versa format found'
+        print('Aperio Versa format found')
         format = 'aperio'
     elif description[-4:] == 'OME>':
         print("OME-TIFF format found")
