@@ -30,12 +30,18 @@ def parse_args():
         "--remove_date",
         default=False,
         action = "store_true",
-        help=f"Remove DateTime 306 (0x132) and Date/Time values in Aperio SVS"
+        help="Remove DateTime 306 (0x132) and Date/Time values in Aperio SVS"
     )
     parser.add_argument(
         "--replace_date",
         help="YYYY:MM:DD HH:MM:SS string to replace all DateTime 306 (0x132) values and Date/Time values in Aperio SVS"
         "Note the use of colons in the date, as required by the TIFF standard.",
+    )
+    parser.add_argument(
+        "--remove_ome_sa",
+        help = "Remove Structured Annotations from OME-XML",
+        default = False,
+        action= "store_true"
     )
     args = parser.parse_args()
 
@@ -132,13 +138,13 @@ def redact_aperio_date(
     for idx, ifd in enumerate(tifftools.commands._iterate_ifds(info['ifds'])):
         for tagidx, taginfo in list(ifd['tags'].items()):
             if tagidx == tifftools.Tag.IMAGEDESCRIPTION.value:
-                if re.match(r'.+\|Date = \d{2}\/\d{2}\/\d{2}.+',taginfo['data'], flags = re.S):
+                if re.match(r'.+\|Date = (\d{2,4}[\/-]\d{2}[\/-]\d{2})(T\d{2}\:\d{2}\:\d{2}Z)?\|.+',taginfo['data'], flags = re.S):
                     if replacement is None:
                         print(f'Removing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx}')
-                        new_description =  re.sub(r'\|Date = \d{2}\/\d{2}\/\d{2}\|Time = \d{2}:\d{2}:\d{2}', '', taginfo['data'])
+                        new_description =  re.sub(r'\|Date = (\d{2,4}[\/-]\d{2}[\/-]\d{2})(T\d{2}\:\d{2}\:\d{2}Z)?\||Time = (\d{2}:\d{2}:\d{2})', '', taginfo['data'])
                     else:
                         print(f'Replacing Date and Time from {tifftools.Tag.IMAGEDESCRIPTION} from IFD {idx} with {replacement}')
-                        new_description =  re.sub(r'Date = \d{2}\/\d{2}\/\d{2}', f'Date = {replacement[0]}',taginfo['data'])
+                        new_description =  re.sub(r'Date = (\d{2,4}[\/-]\d{2}[\/-]\d{2})(T\d{2}\:\d{2}\:\d{2}Z)?', f'Date = {replacement[0]}',taginfo['data'])
                         new_description =  re.sub(r'Time = \d{2}:\d{2}:\d{2}', f'Time = {replacement[1]}', taginfo['data'])
                     taginfo['datatype'] = tifftools.Datatype.ASCII
                     taginfo['data'] = new_description
@@ -225,7 +231,9 @@ def main():
     if format == "ometiff":
         print("Looking for dates in OME formatted ImageDescription")
         info = remove_ome_date(info)
-        info = remove_ome_sa(info)
+        if args.remove_ome_sa:
+            print("Looking for Structured Annotations to Remove")
+            info = remove_ome_sa(info)
 
     #if args.overwrite:
     #    tifftools.write_tiff(info, args.input, allowExisting=True)
